@@ -1,99 +1,176 @@
 using System;
+using System.Collections.Generic;
 
-class BTreeNode
+public class BTree<T> where T : IComparable<T>
 {
-    public int[] keys;
-    public int t; // Minimum degree (defines the range for number of keys)
-    public BTreeNode[] C;
-    public int n; // Current number of keys
-    public bool leaf;
+    private readonly int _order;
+    private Node _root;
 
-    public BTreeNode(int t1, bool leaf1)
+    public BTree(int order)
     {
-        t = t1;
-        leaf = leaf1;
-
-        // Allocate memory for maximum number of possible keys
-        // and child pointers
-        keys = new int[2 * t - 1];
-        C = new BTreeNode[2 * t];
-
-        // Initialize the number of keys as 0
-        n = 0;
+        _order = order;
+        _root = new Node();
     }
 
-    // Function to traverse all nodes in a subtree rooted with this node
-    public void traverse()
+    public void Insert(T value)
     {
-        // There are n keys and n+1 children, traverse through n keys
-        // and first n children
-        int i;
-        for (i = 0; i < n; i++)
+        // Tìm vị trí để chèn
+        Node node = _root;
+        while (!node.IsLeaf)
         {
-            // If this is not leaf, then before printing key[i],
-            // traverse the subtree rooted with child C[i].
-            if (leaf == false)
-            {
-                C[i].traverse();
-            }
-            Console.Write(" " + keys[i]);
+            int index = FindChildIndex(node.Keys, value);
+            node = node.Children[index];
         }
 
-        // Print the subtree rooted with last child
-        if (leaf == false)
-            C[i].traverse();
+        // Chèn giá trị vào node lá
+        node.Keys.Add(value);
+        if (node.Keys.Count > _order - 1)
+        {
+            SplitNode(node);
+        }
+    }
+
+    public bool Search(T value)
+    {
+        Node node = _root;
+        while (node != null)
+        {
+            int index = FindChildIndex(node.Keys, value);
+            if (index < node.Keys.Count && node.Keys[index].Equals(value))
+            {
+                return true;
+            }
+            else
+            {
+                node = node.Children[index];
+            }
+        }
+
+        return false;
+    }
+
+    public void Delete(T value)
+    {
+        // Tìm node chứa giá trị cần xóa
+        Node node = FindNode(value);
+        if (node == null)
+        {
+            return;
+        }
+
+        // Xóa giá trị khỏi node
+        int index = node.Keys.IndexOf(value);
+        node.Keys.RemoveAt(index);
+
+        // Nếu node lá có ít hơn `_order / 2` giá trị, cần cân bằng lại cây
+        if (node.IsLeaf && node.Keys.Count < _order / 2)
+        {
+            BalanceTree(node);
+        }
+    }
+
+    private Node FindNode(T value)
+    {
+        Node node = _root;
+        while (node != null)
+        {
+            int index = FindChildIndex(node.Keys, value);
+            if (index < node.Keys.Count && node.Keys[index].Equals(value))
+            {
+                return node;
+            }
+            else
+            {
+                node = node.Children[index];
+            }
+        }
+
+        return null;
+    }
+
+    private int FindChildIndex(List<T> keys, T value)
+    {
+        int low = 0;
+        int high = keys.Count - 1;
+
+        while (low <= high)
+        {
+            int mid = (low + high) / 2;
+            int comparison = value.CompareTo(keys[mid]);
+
+            if (comparison < 0)
+            {
+                high = mid - 1;
+            }
+            else if (comparison > 0)
+            {
+                low = mid + 1;
+            }
+            else
+            {
+                return mid;
+            }
+        }
+
+        return low;
+    }
+
+    private void SplitNode(Node node)
+    {
+        // Tạo node mới để chứa một nửa số key của node hiện tại
+        Node newNode = new Node();
+        newNode.IsLeaf = node.IsLeaf;
+
+        // Di chuyển một nửa số key sang node mới
+        int mid = (node.Keys.Count - 1) / 2;
+        for (int i = mid + 1; i < node.Keys.Count; i++)
+        {
+            newNode.Keys.Add(node.Keys[i]);
+        }
+
+        // Cập nhật node hiện tại
+        node.Keys.RemoveRange(mid + 1, node.Keys.Count - mid - 1);
+
+        // Thêm node mới vào danh sách con của node cha
+        int index = node.Parent.Children.IndexOf(node);
+        node.Parent.Children.Insert(index + 1, newNode);
+
+        // Cập nhật parent của node mới
+        newNode.Parent = node.Parent;
+
+        // Nếu node cha đã đầy, cần chia đôi node cha
+        if (node.Parent.Keys.Count > _order - 1)
+        {
+            SplitNode(node.Parent);
+        }
     }
 }
 
-class BTree
+public class Example
 {
-    public BTreeNode root; // Pointer to root node
-    public int t; // Minimum degree
-
-    // Constructor (Initializes tree as empty)
-    public BTree(int t1)
+    public static void Main(string[] args)
     {
-        root = null;
-        t = t1;
-    }
+        // Tạo B-Tree với order là 5
+        BTree<string> bTree = new BTree<string>(5);
 
-    // function to traverse the tree
-    public void traverse()
-    {
-        if (root != null) root.traverse();
-    }
-}
+        // Thêm tên vào B-Tree
+        bTree.Insert("Alice");
+        bTree.Insert("Bob");
+        bTree.Insert("Carol");
+        bTree.Insert("Dave");
+        bTree.Insert("Eve");
 
-public class Program
-{
-    public static void Main()
-    {
-        BTree t = new BTree(3); // A B-Tree with minimum degree 3
-        t.root = new BTreeNode(3, true);
-        t.root.keys[0] = 1;
-        t.root.keys[1] = 3;
-        t.root.keys[2] = 7;
-        t.root.n = 3;
+        // Tìm kiếm tên trong B-Tree
+        bool isFound = bTree.Search("Bob");
+        Console.WriteLine("Bob được tìm thấy trong B-Tree: " + isFound);
 
-        t.root.C[0] = new BTreeNode(3, true);
-        t.root.C[0].keys[0] = 10;
-        t.root.C[0].keys[1] = 20;
-        t.root.C[0].keys[2] = 30;
-        t.root.C[0].n = 3;
+        // Xóa tên khỏi B-Tree
+        bTree.Delete("Carol");
 
-        t.root.C[1] = new BTreeNode(3, true);
-        t.root.C[1].keys[0] = 40;
-        t.root.C[1].keys[1] = 50;
-        t.root.C[1].keys[2] = 60;
-        t.root.C[1].n = 3;
-
-        t.root.C[2] = new BTreeNode(3, true);
-        t.root.C[2].keys[0] = 70;
-        t.root.C[2].keys[1] = 80;
-        t.root.C[2].keys[2] = 90;
-        t.root.C[2].n = 3;
-
-        Console.WriteLine("Traversal of tree constructed is");
-        t.traverse();
+        // Duyệt qua B-Tree
+        foreach (string name in bTree)
+        {
+            Console.WriteLine(name);
+        }
     }
 }
