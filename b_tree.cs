@@ -1,99 +1,164 @@
 using System;
+using System.Collections.Generic;
 
-class BTreeNode
+public class BTreeNode
 {
     public int[] keys;
-    public int t; // Minimum degree (defines the range for number of keys)
-    public BTreeNode[] C;
-    public int n; // Current number of keys
+    public int t;
+    public BTreeNode[] child;
+    public int n;
     public bool leaf;
 
-    public BTreeNode(int t1, bool leaf1)
+    public BTreeNode(int t, bool leaf)
     {
-        t = t1;
-        leaf = leaf1;
-
-        // Allocate memory for maximum number of possible keys
-        // and child pointers
+        this.t = t;
+        this.leaf = leaf;
         keys = new int[2 * t - 1];
-        C = new BTreeNode[2 * t];
-
-        // Initialize the number of keys as 0
+        child = new BTreeNode[2 * t];
         n = 0;
     }
 
-    // Function to traverse all nodes in a subtree rooted with this node
     public void traverse()
     {
-        // There are n keys and n+1 children, traverse through n keys
-        // and first n children
-        int i;
+        int i = 0;
         for (i = 0; i < n; i++)
         {
-            // If this is not leaf, then before printing key[i],
-            // traverse the subtree rooted with child C[i].
             if (leaf == false)
-            {
-                C[i].traverse();
-            }
-            Console.Write(" " + keys[i]);
+                child[i].traverse();
+            Console.Write(keys[i] + " ");
         }
-
-        // Print the subtree rooted with last child
         if (leaf == false)
-            C[i].traverse();
+            child[i].traverse();
+    }
+
+    public BTreeNode search(int k)
+    {
+        int i = 0;
+        while (i < n && k > keys[i])
+            i++;
+        if (keys[i] == k)
+            return this;
+        if (leaf == true)
+            return null;
+        return child[i].search(k);
+    }
+
+    public void insertNonFull(int k)
+    {
+        int i = n - 1;
+        if (leaf == true)
+        {
+            while (i >= 0 && keys[i] > k)
+            {
+                keys[i + 1] = keys[i];
+                i--;
+            }
+            keys[i + 1] = k;
+            n = n + 1;
+        }
+        else
+        {
+            while (i >= 0 && keys[i] > k)
+                i--;
+            if (child[i + 1].n == 2 * t - 1)
+            {
+                splitChild(i + 1, child[i + 1]);
+                if (keys[i + 1] < k)
+                    i++;
+            }
+            child[i + 1].insertNonFull(k);
+        }
+    }
+
+    public void splitChild(int i, BTreeNode y)
+    {
+        BTreeNode z = new BTreeNode(y.t, y.leaf);
+        z.n = t - 1;
+        for (int j = 0; j < t - 1; j++)
+            z.keys[j] = y.keys[j + t];
+        if (y.leaf == false)
+        {
+            for (int j = 0; j < t; j++)
+                z.child[j] = y.child[j + t];
+        }
+        y.n = t - 1;
+        for (int j = n; j >= i + 1; j--)
+            child[j + 1] = child[j];
+        child[i + 1] = z;
+        for (int j = n - 1; j >= i; j--)
+            keys[j + 1] = keys[j];
+        keys[i] = y.keys[t - 1];
+        n = n + 1;
     }
 }
 
-class BTree
+public class BTree
 {
-    public BTreeNode root; // Pointer to root node
-    public int t; // Minimum degree
+    public BTreeNode root;
+    public int t;
 
-    // Constructor (Initializes tree as empty)
-    public BTree(int t1)
+    public BTree(int t)
     {
+        this.t = t;
         root = null;
-        t = t1;
     }
 
-    // function to traverse the tree
     public void traverse()
     {
-        if (root != null) root.traverse();
+        if (root != null)
+            root.traverse();
+    }
+
+    public BTreeNode search(int k)
+    {
+        if (root == null)
+            return null;
+        else
+            return root.search(k);
+    }
+
+    public void insert(int k)
+    {
+        if (root == null)
+        {
+            root = new BTreeNode(t, true);
+            root.keys[0] = k;
+            root.n = 1;
+        }
+        else
+        {
+            if (root.n == 2 * t - 1)
+            {
+                BTreeNode temp = new BTreeNode(t, false);
+                temp.child[0] = root;
+                temp.splitChild(0, root);
+                int i = 0;
+                if (temp.keys[0] < k)
+                    i++;
+                temp.child[i].insertNonFull(k);
+                root = temp;
+            }
+            else
+                root.insertNonFull(k);
+        }
     }
 }
 
 public class Program
 {
-    public static void Main()
+    public static void Main(string[] args)
     {
-        BTree t = new BTree(3); // A B-Tree with minimum degree 3
-        t.root = new BTreeNode(3, true);
-        t.root.keys[0] = 1;
-        t.root.keys[1] = 3;
-        t.root.keys[2] = 7;
-        t.root.n = 3;
+        BTree b = new BTree(3);
+        b.insert(10);
+        b.insert(20);
+        b.insert(5);
+        b.insert(6);
+        b.insert(12);
+        b.insert(30);
+        b.insert(7);
+        b.insert(17);
 
-        t.root.C[0] = new BTreeNode(3, true);
-        t.root.C[0].keys[0] = 10;
-        t.root.C[0].keys[1] = 20;
-        t.root.C[0].keys[2] = 30;
-        t.root.C[0].n = 3;
-
-        t.root.C[1] = new BTreeNode(3, true);
-        t.root.C[1].keys[0] = 40;
-        t.root.C[1].keys[1] = 50;
-        t.root.C[1].keys[2] = 60;
-        t.root.C[1].n = 3;
-
-        t.root.C[2] = new BTreeNode(3, true);
-        t.root.C[2].keys[0] = 70;
-        t.root.C[2].keys[1] = 80;
-        t.root.C[2].keys[2] = 90;
-        t.root.C[2].n = 3;
-
-        Console.WriteLine("Traversal of tree constructed is");
-        t.traverse();
+        Console.WriteLine("Traversal of the constucted tree is");
+        b.traverse();
     }
 }
