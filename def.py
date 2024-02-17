@@ -1,42 +1,41 @@
 class DisjointSet:
-    def __init__(self, n):
-        self.parent = [i for i in range(n)]
-        self.rank = [0] * n
+    def __init__(self, vertices):
+        self.vertices = vertices
+        self.parent = {}
+        for v in vertices:
+            self.parent[v] = v
+        self.rank = dict.fromkeys(vertices, 0)
 
-    def find(self, u):
-        if self.parent[u] != u:
-            self.parent[u] = self.find(self.parent[u])  # Path compression
-        return self.parent[u]
-
-    def union(self, u, v):
-        root_u = self.find(u)
-        root_v = self.find(v)
-
-        if root_u == root_v:
-            return
-
-        if self.rank[root_u] < self.rank[root_v]:
-            self.parent[root_u] = root_v
-        elif self.rank[root_u] > self.rank[root_v]:
-            self.parent[root_v] = root_u
+    def find(self, item):
+        if self.parent[item] == item:
+            return item
         else:
-            self.parent[root_v] = root_u
-            self.rank[root_u] += 1
+            return self.find(self.parent[item])
 
-def main():
-    # Example usage
-    n = 5  # Number of elements
-    ds = DisjointSet(n)
+    def union(self, x, y):
+        x_root = self.find(x)
+        y_root = self.find(y)
+        if self.rank[x_root] < self.rank[y_root]:
+            self.parent[x_root] = y_root
+        elif self.rank[x_root] > self.rank[y_root]:
+            self.parent[y_root] = x_root
+        else:
+            self.parent[y_root] = x_root
+            self.rank[x_root] += 1
 
-    ds.union(0, 1)
-    ds.union(1, 2)
-    ds.union(3, 4)
+# Tạo một Disjoint Set với các đỉnh từ 1 đến 5
+vertices = [1, 2, 3, 4, 5]
+ds = DisjointSet(vertices)
 
-    print("Parent array after union operations:", ds.parent)
-    print("Rank array after union operations:", ds.rank)
+# Kết hợp các tập hợp
+ds.union(1, 2)
+ds.union(3, 4)
+ds.union(4, 5)
 
-    print("Are 0 and 2 in the same set?", ds.find(0) == ds.find(2))
-    print("Are 0 and 3 in the same set?", ds.find(0) == ds.find(3))
-
-if __name__ == "__main__":
-    main()
+# Kiểm tra xem các đỉnh có cùng tập hợp hay không
+for i in range(1, 6):
+    for j in range(i+1, 6):
+        if ds.find(i) == ds.find(j):
+            print(f"Vertex {i} and vertex {j} are in the same set.")
+        else:
+            print(f"Vertex {i} and vertex {j} are in different sets.")
